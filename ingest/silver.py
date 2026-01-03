@@ -18,16 +18,20 @@ def process_hour_to_records(s3, date, hour):
     for line in decompressed.split(b"\n"):
         if not line:
             continue
-        event = json.loads(line)
-        if event["type"] not in KEEP_EVENTS:
+        try:
+            event = json.loads(line)
+            if event["type"] not in KEEP_EVENTS:
+                continue
+            records.append({
+                "event_type": event["type"],
+                "repo_id": event["repo"]["id"],
+                "repo_name": event["repo"]["name"],
+                "actor_id": event["actor"]["id"],
+                "created_at": event["created_at"]
+            })
+        
+        except (KeyError, json.JSONDecodeError):
             continue
-        records.append({
-            "event_type": event["type"],
-            "repo_id": event["repo"]["id"],
-            "repo_name": event["repo"]["name"],
-            "actor_id": event["actor"]["id"],
-            "created_at": event["created_at"]
-        })
     return records
 
 def process_day_to_silver(date):

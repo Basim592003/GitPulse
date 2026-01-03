@@ -1,21 +1,16 @@
-import gzip
-import json
+import sys
+sys.path.append(".")
+
+import pandas as pd
+from io import BytesIO
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report
+import joblib
 from ingest.config import get_s3_client, R2_BUCKET
 
 s3 = get_s3_client()
 
-response = s3.get_object(
-    Bucket=R2_BUCKET,
-    Key="bronze/year=2025/month=09/day=01/hour=00/events.json.gz"
-)
-
-compressed_data = response["Body"].read()
-decompressed_data = gzip.decompress(compressed_data)
-
-first_line = decompressed_data.split(b"\n")
-count = len(first_line)
-print(count)
-
-event = json.loads(first_line)
-
-print(json.dumps(event))
+response = s3.get_object(Bucket=R2_BUCKET, Key="ml/training_data.parquet")
+df = pd.read_parquet(BytesIO(response["Body"].read()))
+print(f"Loaded {len(df)} rows")

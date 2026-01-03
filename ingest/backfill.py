@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 from bronze import ingest_hour
 from silver import process_day_to_silver, delete_bronze_day
 
-start_date = datetime(2025, 12, 1)
-end_date = datetime(2025, 12, 2)
+start_date = datetime(2025, 12, 3)
+end_date = datetime(2025, 12, 18)
 
 current = start_date
 while current <= end_date:
