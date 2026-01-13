@@ -9,10 +9,10 @@ from ingest.config import get_s3_client, R2_BUCKET
 
 s3 = get_s3_client()
 
-today = datetime.now(timezone.utc)
-today_str = today.strftime("%Y-%m-%d")
+yesterday = datetime.now(timezone.utc) - timedelta(days=1)
+yesterday_str = yesterday.strftime("%Y-%m-%d")
 
-old_date = today - timedelta(days=8)
+old_date = datetime.now(timezone.utc) - timedelta(days=8)
 old_str = old_date.strftime("%Y-%m-%d")
 year, month, day = old_str.split("-")
 
@@ -22,18 +22,18 @@ try:
 except:
     print(f"No old data to delete: {old_str}")
 
-print(f"\n=== Processing {today_str} ===")
+print(f"\n=== Processing {yesterday_str} ===")
 
 for hour in range(24):
     try:
-        ingest_hour(today_str, hour)
+        ingest_hour(yesterday_str, hour)
         print(f"Downloaded: hour {hour}")
     except Exception as e:
         print(f"Failed hour {hour}: {e}")
 
-process_day_to_silver(today_str)
-process_day_to_gold(today_str)
-delete_bronze_day(today_str)
-delete_silver_day(today_str)
+process_day_to_silver(yesterday_str)
+process_day_to_gold(yesterday_str)
+delete_bronze_day(yesterday_str)
+delete_silver_day(yesterday_str)
 
 print("\nDaily ingest complete!")

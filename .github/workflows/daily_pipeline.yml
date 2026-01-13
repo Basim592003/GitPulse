@@ -29,7 +29,7 @@ jobs:
           R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          python scripts/daily_ingest.py
+          python ingest/daily_ingest.py
       
       - name: Run predictions
         env:
