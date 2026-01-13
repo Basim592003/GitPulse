@@ -145,7 +145,6 @@ def load_data():
         return None
 
 df = load_data()
-
 if df is None:
     st.warning("No prediction data available. Run `python ml/predict.py` first.")
     st.stop()
