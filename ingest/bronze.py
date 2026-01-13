@@ -21,6 +21,18 @@ def ingest_hour(date, hour):
     key = upload_to_bronze(data, date, hour)
     return key
 
+def delete_bronze_day(date):
+    s3 = get_s3_client()
+    year, month, day = date.split("-")
+    
+    for hour in range(24):
+        key = f"bronze/year={year}/month={month}/day={day}/hour={hour:02d}/events.json.gz"
+        try:
+            s3.delete_object(Bucket=R2_BUCKET, Key=key)
+        except:
+            pass
+    print(f"Deleted bronze for {date}")
+    
 if __name__ == "__main__":
     yesterday = datetime.now() - timedelta(days=0)
     date = yesterday.strftime("%Y-%m-%d")

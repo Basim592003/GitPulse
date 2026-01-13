@@ -58,14 +58,12 @@ def process_day_to_silver(date):
     print(f"Uploaded: {silver_key} ({len(df)} total events)")
     return silver_key
 
-def delete_bronze_day(date):
+def delete_silver_day(date):
     s3 = get_s3_client()
     year, month, day = date.split("-")
-    
-    for hour in range(24):
-        key = f"bronze/year={year}/month={month}/day={day}/hour={hour:02d}/events.json.gz"
-        try:
-            s3.delete_object(Bucket=R2_BUCKET, Key=key)
-        except:
-            pass
-    print(f"Deleted bronze for {date}")
+    key = f"silver/year={year}/month={month}/day={day}/events.parquet"
+    try:
+        s3.delete_object(Bucket=R2_BUCKET, Key=key)
+        print(f"Deleted silver for {date}")
+    except:
+        pass
