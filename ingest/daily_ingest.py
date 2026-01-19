@@ -5,22 +5,9 @@ from datetime import datetime, timedelta, timezone
 from ingest.bronze import ingest_hour, delete_bronze_day
 from ingest.silver import process_day_to_silver, delete_silver_day
 from ingest.gold import process_day_to_gold
-from ingest.config import get_s3_client, R2_BUCKET
-
-s3 = get_s3_client()
 
 yesterday = datetime.now(timezone.utc) - timedelta(days=1)
 yesterday_str = yesterday.strftime("%Y-%m-%d")
-
-old_date = yesterday - timedelta(days=8)
-old_str = old_date.strftime("%Y-%m-%d")
-year, month, day = old_str.split("-")
-
-try:
-    s3.delete_object(Bucket=R2_BUCKET, Key=f"gold/year={year}/month={month}/day={day}/metrics.parquet")
-    print(f"Deleted old gold: {old_str}")
-except:
-    print(f"No old data to delete: {old_str}")
 
 print(f"\n=== Processing {yesterday_str} ===")
 
