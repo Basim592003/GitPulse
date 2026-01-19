@@ -170,11 +170,11 @@ with st.sidebar:
     )
     
     prob_threshold = st.slider("Probability Threshold", 0.5, 0.99, 0.7)
-    sort_by = st.selectbox("Sort By", ["Viral %", "Trending %", "Stars", "Star Velocity"])
+    sort_by = st.selectbox("Sort By", ["Viral %", "Stars", "Star Velocity"])
     
     sort_map = {
         "Viral %": "viral_prob",
-        "Trending %": "trending_prob",
+        # "Trending %": "trending_prob",
         "Stars": "stars",
         "Star Velocity": "star_velocity"
     }
@@ -214,7 +214,7 @@ with col3:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value" style="color: #4ecdc4;">{trending_count:,}</div>
-        <div class="metric-label">Predicted Trending</div>
+        <div class="metric-label">Predicted Trending(In Progress)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -226,7 +226,7 @@ with col4:
     st.markdown(f"""
     <div class="metric-card">
         <div class="metric-value" style="color: #ffd700;">{hot_count:,}</div>
-        <div class="metric-label">Hot Repos (Both)</div>
+        <div class="metric-label">Hot Repos(In Progress)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -289,7 +289,7 @@ with tab2:
                 with cols[idx % 3]:
                     st.markdown(render_repo_card(row), unsafe_allow_html=True)
     else:
-        st.info("Trending predictions not available. Train the trending model first.")
+        st.info("Coming Soon.")
 
 with tab3:
     if "trending_prob" in filtered_df.columns:
@@ -306,7 +306,7 @@ with tab3:
                 with cols[idx % 3]:
                     st.markdown(render_repo_card(row), unsafe_allow_html=True)
     else:
-        st.info("Trending predictions not available. Train the trending model first.")
+        st.info("Coming Soon.")
 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown(

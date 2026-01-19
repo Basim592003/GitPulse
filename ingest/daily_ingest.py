@@ -12,7 +12,7 @@ s3 = get_s3_client()
 yesterday = datetime.now(timezone.utc) - timedelta(days=1)
 yesterday_str = yesterday.strftime("%Y-%m-%d")
 
-old_date = datetime.now(timezone.utc) - timedelta(days=8)
+old_date = yesterday - timedelta(days=8)
 old_str = old_date.strftime("%Y-%m-%d")
 year, month, day = old_str.split("-")
 
