@@ -169,7 +169,7 @@ with st.sidebar:
         value=(0, int(df["forks"].max()))
     )
     
-    # prob_threshold = st.slider("Probability Threshold", 0.5, 0.99, 0.7)
+    prob_threshold = st.slider("Probability Threshold", 0.5, 0.99, 0.7)
     sort_by = st.selectbox("Sort By", ["Viral %", "Stars", "Star Velocity"])
     
     sort_map = {
