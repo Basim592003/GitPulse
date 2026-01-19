@@ -198,11 +198,11 @@ with col1:
     """, unsafe_allow_html=True)
 
 with col2:
-    total_viral = df["total_predicted_viral"].iloc[0] if "total_predicted_viral" in df.columns else len(df[df["viral_prob"] >= 0.7])
+    viral_count = len(filtered_df[filtered_df["viral_prob"] >= prob_threshold])
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-value" style="color: #ff6b6b;">{total_viral:,}</div>
-        <div class="metric-label">Predicted Viral (≥70%)</div>
+        <div class="metric-value" style="color: #ff6b6b;">{viral_count:,}</div>
+        <div class="metric-label">Predicted Viral (≥{int(prob_threshold*100)}%)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -266,6 +266,7 @@ with tab1:
     viral_df = filtered_df[filtered_df["viral_prob"] >= prob_threshold].sort_values(
         sort_map[sort_by], ascending=False
     ).head(50)
+
     
     if len(viral_df) == 0:
         st.info("No repos match the current filters.")
