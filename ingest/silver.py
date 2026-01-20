@@ -2,7 +2,7 @@ import gzip
 import json
 import pandas as pd
 from io import BytesIO
-from config import get_s3_client, R2_BUCKET
+from ingest.config import get_s3_client, R2_BUCKET
 
 KEEP_EVENTS = ["WatchEvent", "ForkEvent", "PushEvent", "PullRequestEvent", "IssuesEvent", "CreateEvent"]
 
