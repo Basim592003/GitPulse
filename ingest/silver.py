@@ -9,7 +9,7 @@ KEEP_EVENTS = ["WatchEvent", "ForkEvent", "PushEvent", "PullRequestEvent", "Issu
 def process_hour_to_records(s3, date, hour):
     year, month, day = date.split("-")
     key = f"bronze/year={year}/month={month}/day={day}/hour={hour:02d}/events.json.gz"
-    
+    print(f"R2_BUCKET = {R2_BUCKET}")
     response = s3.get_object(Bucket=R2_BUCKET, Key=key)
     compressed = response["Body"].read()
     decompressed = gzip.decompress(compressed)
@@ -52,7 +52,7 @@ def process_day_to_silver(date):
     buffer = BytesIO()
     df.to_parquet(buffer, index=False)
     buffer.seek(0)
-    
+    print(f"R2_BUCKET = {R2_BUCKET}")
     silver_key = f"silver/year={year}/month={month}/day={day}/events.parquet"
     s3.put_object(Bucket=R2_BUCKET, Key=silver_key, Body=buffer.getvalue())
     print(f"Uploaded: {silver_key} ({len(df)} total events)")
