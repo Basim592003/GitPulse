@@ -2,6 +2,7 @@ import os
 import boto3
 
 def load_config():
+    # Try Streamlit secrets first (for Streamlit Cloud)
     try:
         import streamlit as st
         if hasattr(st, 'secrets') and len(st.secrets) > 0:
@@ -11,11 +12,14 @@ def load_config():
                 st.secrets["R2_ENDPOINT_URL"],
                 st.secrets["R2_BUCKET_NAME"]
             )
-    except:
+    except ImportError:
+        pass
+    except Exception:
         pass
     
+    # Fall back to environment variables (for local/.env and GitHub Actions)
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv()  # Does nothing if no .env file, that's fine
     return (
         os.getenv("R2_ACCESS_KEY_ID"),
         os.getenv("R2_SECRET_ACCESS_KEY"),
