@@ -22,8 +22,8 @@ def load_config():
     
     bucket = os.getenv("R2_BUCKET_NAME")
     print(f"Using env vars, R2_BUCKET_NAME = {bucket}")
-    if R2_BUCKET is None:
-     raise ValueError("R2_BUCKET_NAME environment variable is not set in your workflow.")
+    if bucket is None:
+      raise ValueError("R2_BUCKET_NAME environment variable is not set in your workflow.")
 
     return (
         os.getenv("R2_ACCESS_KEY_ID"),
