@@ -2,7 +2,6 @@ import os
 import boto3
 
 def load_config():
-    # Try Streamlit secrets first (for Streamlit Cloud)
     try:
         import streamlit as st
         if "R2_ACCESS_KEY_ID" in st.secrets:
@@ -15,14 +14,12 @@ def load_config():
     except:
         pass
     
-    # Try .env file for local development
     try:
         from dotenv import load_dotenv
         load_dotenv()
     except:
         pass
     
-    # Get from environment (works for both local and GitHub Actions)
     bucket = os.getenv("R2_BUCKET_NAME")
     
     return (
