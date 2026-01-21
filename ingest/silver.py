@@ -2,6 +2,8 @@ import gzip
 import json
 import pandas as pd
 from io import BytesIO
+import sys
+sys.path.insert(0, ".")
 from ingest.config import get_s3_client, R2_BUCKET
 
 KEEP_EVENTS = ["WatchEvent", "ForkEvent", "PushEvent", "PullRequestEvent", "IssuesEvent", "CreateEvent"]
