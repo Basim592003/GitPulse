@@ -1,5 +1,10 @@
+import os
 import sys
-sys.path.append(".")
+print(f"R2_BUCKET_NAME from env: {os.getenv('R2_BUCKET_NAME')}")
+print(f"R2_ENDPOINT_URL from env: {os.getenv('R2_ENDPOINT_URL')}")
+
+sys.path.insert(0, ".")
+
 
 from datetime import datetime, timedelta, timezone
 from ingest.bronze import ingest_hour, delete_bronze_day
