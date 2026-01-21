@@ -2,8 +2,7 @@ import requests
 import gzip
 from datetime import datetime, timedelta
 import sys
-sys.path.insert(0, ".")
-from ingest.config import get_s3_client, R2_BUCKET
+from .config import get_s3_client, R2_BUCKET
 
 def download_hour(date, hour):
     url = f"https://data.gharchive.org/{date}-{hour}.json.gz"

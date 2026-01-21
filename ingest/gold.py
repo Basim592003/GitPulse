@@ -1,6 +1,6 @@
 import pandas as pd
 from io import BytesIO
-from ingest.config import get_s3_client, R2_BUCKET
+from .config import get_s3_client, R2_BUCKET
 
 def load_silver_day(s3, date):
     year, month, day = date.split("-")
