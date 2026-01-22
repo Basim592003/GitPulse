@@ -135,6 +135,8 @@ st.markdown("""
 @st.cache_data(ttl=300)
 def load_data():
     try:
+        sys.path.append(".")
+
         from ingest.config import get_s3_client, R2_BUCKET
         s3 = get_s3_client()
         response = s3.get_object(Bucket=R2_BUCKET, Key="predictions/latest.parquet")
