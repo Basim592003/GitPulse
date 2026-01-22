@@ -10,7 +10,7 @@ KEEP_EVENTS = ["WatchEvent", "ForkEvent", "PushEvent", "PullRequestEvent", "Issu
 def process_hour_to_records(s3, date, hour):
     year, month, day = date.split("-")
     key = f"bronze/year={year}/month={month}/day={day}/hour={hour:02d}/events.json.gz"
-    print(f"R2_BUCKET = {R2_BUCKET}")
+    
     response = s3.get_object(Bucket=R2_BUCKET, Key=key)
     compressed = response["Body"].read()
     decompressed = gzip.decompress(compressed)
