@@ -1,36 +1,26 @@
-name: Daily Pipeline
+name: Monthly Retrain
 
 on:
   schedule:
-    - cron: '0 6 * * *'
-  workflow_dispatch:  
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
 
 jobs:
-  ingest-and-predict:
+  retrain:
     runs-on: ubuntu-latest
-    env:
-      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
-      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      
-      - name: Install dependencies
-        run: |
+
+      - run: |
           pip install boto3 pandas pyarrow requests python-dotenv scikit-learn joblib
-      
-      - name: Run daily update
+
+      - name: Run retrain
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
         run: |
-          python ingest/daily_ingest.py
-      
-      - name: Run predictions
-        run: |
-          python ml/predict.py
+          python ml/retrain.py
