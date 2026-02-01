@@ -6,7 +6,7 @@ from ingest.bronze import ingest_hour, delete_bronze_day
 from ingest.silver import process_day_to_silver, delete_silver_day
 from ingest.gold import process_day_to_gold
 
-missing_days = ["2026-01-19"]
+missing_days = ["2026-01-20", "2026-01-21"]
 
 for date_str in missing_days:
     print(f"\n=== Processing {date_str} ===")
