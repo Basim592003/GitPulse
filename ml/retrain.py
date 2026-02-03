@@ -18,7 +18,6 @@ feature_cols = ["stars", "forks", "pushes", "prs", "issues",
                 "star_velocity", "fork_ratio"]
 
 def get_available_dates(s3):
-    """Get all available gold dates"""
     response = s3.list_objects_v2(Bucket=R2_BUCKET, Prefix="gold/")
     dates = []
     for obj in response.get("Contents", []):
@@ -32,7 +31,6 @@ def get_available_dates(s3):
     return sorted(dates)
 
 def add_labels_vectorized(features_df, s3, available_dates):
-    """Reused from labels.py but with dynamic dates"""
     future_days = []
     for date_str in available_dates:
         try:
@@ -75,12 +73,11 @@ def add_labels_vectorized(features_df, s3, available_dates):
     
     return features_df
 
-def delete_old_month(s3, dates):
-    """Delete gold files from previous month"""
-    current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+def delete_old_data(s3, dates):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=8)).strftime("%Y-%m-%d")
     
     for date_str in dates:
-        if not date_str.startswith(current_month):
+        if date_str < cutoff:
             year, month, day = date_str.split("-")
             key = f"gold/year={year}/month={month}/day={day}/metrics.parquet"
             try:
@@ -148,25 +145,23 @@ def retrain():
     new_f1 = f1_score(y_test, model_new.predict(X_test_scaled))
     print(f"\nNew model F1: {new_f1:.4f}")
     
-    try:
-        model_old = joblib.load(os.path.join(script_dir, "model_viral.pkl"))
-        scaler_old = joblib.load(os.path.join(script_dir, "scaler_viral.pkl"))
-        X_test_old_scaled = scaler_old.transform(X_test)
-        old_f1 = f1_score(y_test, model_old.predict(X_test_old_scaled))
-        print(f"Old model F1: {old_f1:.4f}")
-    except:
-        old_f1 = 0
-        print("No old model found")
+    # Save new model with timestamp (never overwrite)
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    model_path = os.path.join(script_dir, f"model_viral_{timestamp}.pkl")
+    scaler_path = os.path.join(script_dir, f"scaler_viral_{timestamp}.pkl")
     
-    if new_f1 > old_f1:
-        joblib.dump(model_new, os.path.join(script_dir, "model_viral.pkl"))
-        joblib.dump(scaler_new, os.path.join(script_dir, "scaler_viral.pkl"))
-        print("New model is better — saved!")
-    else:
-        print("Old model is better — keeping it")
+    joblib.dump(model_new, model_path)
+    joblib.dump(scaler_new, scaler_path)
+    print(f"Saved: {model_path}")
+    print(f"Saved: {scaler_path}")
+    
+    # Also save as latest (for predict.py to use)
+    joblib.dump(model_new, os.path.join(script_dir, "model_viral.pkl"))
+    joblib.dump(scaler_new, os.path.join(script_dir, "scaler_viral.pkl"))
+    print("Also saved as model_viral.pkl and scaler_viral.pkl")
     
     print("\nCleaning up old data...")
-    delete_old_month(s3, available_dates)
+    delete_old_data(s3, available_dates)
     
     print("\nRetrain complete!")
 
