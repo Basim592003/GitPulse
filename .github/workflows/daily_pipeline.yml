@@ -20,7 +20,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          pip install boto3 pandas pyarrow requests python-dotenv scikit-learn joblib
+          pip install boto3 pandas pyarrow requests python-dotenv scikit-learn joblib mlflow
       
       - name: Run daily update
         env:
