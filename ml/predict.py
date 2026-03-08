@@ -4,30 +4,21 @@ sys.path.append(".")
 
 import pandas as pd
 import joblib
-import glob
+import mlflow
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from ingest.config import get_s3_client, R2_BUCKET
 from features import load_gold_day
 
+os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/Basim592003/my-first-repo.mlflow"
+os.environ["MLFLOW_TRACKING_USERNAME"] = "Basim592003"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = os.environ.get("DAGSHUB_TOKEN", "")
+
 feature_cols = ["stars", "forks", "pushes", "prs", "issues",
                 "avg_stars_7d", "avg_forks_7d", "avg_pushes_7d",
                 "star_velocity", "fork_ratio"]
 
-def get_latest_model(script_dir):
-    model_files = glob.glob(os.path.join(script_dir, "model_viral_*.pkl"))
-    
-    if not model_files:
-        return (
-            os.path.join(script_dir, "model_viral.pkl"),
-            os.path.join(script_dir, "scaler_viral.pkl")
-        )
-    
-    latest_model = max(model_files)
-    timestamp = latest_model.split("model_viral_")[1].replace(".pkl", "")
-    latest_scaler = os.path.join(script_dir, f"scaler_viral_{timestamp}.pkl")
-    
-    return latest_model, latest_scaler
+MODEL_NAME = "gitpulse-viral"
 
 def build_features(s3, target_date):
     target = datetime.strptime(target_date, "%Y-%m-%d")
@@ -62,20 +53,31 @@ def build_features(s3, target_date):
     
     return features
 
+def load_production_model():
+    print("Loading model from DagsHub...")
+    
+    model = mlflow.sklearn.load_model(f"models:/{MODEL_NAME}@Production")
+    
+    client = mlflow.tracking.MlflowClient()
+    model_version = client.get_model_version_by_alias(MODEL_NAME, "Production")
+    run_id = model_version.run_id
+    
+    scaler_path = mlflow.artifacts.download_artifacts(
+        run_id=run_id,
+        artifact_path="scaler/scaler.pkl"
+    )
+    scaler = joblib.load(scaler_path)
+    
+    print(f"Loaded model version: {model_version.version}")
+    
+    return model, scaler
+
 def make_predictions():
     s3 = get_s3_client()
     
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path, scaler_path = get_latest_model(script_dir)
-    
-    print(f"Using model: {model_path}")
-    print(f"Using scaler: {scaler_path}")
-    
-    model_viral = joblib.load(model_path)
-    scaler_viral = joblib.load(scaler_path)
+    model_viral, scaler_viral = load_production_model()
     
     today = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
-
     print(f"Building features for {today}")
     
     features = build_features(s3, today)

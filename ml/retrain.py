@@ -1,21 +1,29 @@
 import sys
 sys.path.append(".")
 
+import os
 import pandas as pd
 import joblib
-import os
+import mlflow
+from mlflow.tracking import MlflowClient
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score, accuracy_score
 from ingest.config import get_s3_client, R2_BUCKET
 from features import load_gold_day, build_features
+
+os.environ["MLFLOW_TRACKING_URI"] = "https://dagshub.com/Basim592003/GitPulse.mlflow"
+os.environ["MLFLOW_TRACKING_USERNAME"] = "Basim592003"
+os.environ["MLFLOW_TRACKING_PASSWORD"] = os.environ.get("DAGSHUB_TOKEN", "")
 
 feature_cols = ["stars", "forks", "pushes", "prs", "issues",
                 "avg_stars_7d", "avg_forks_7d", "avg_pushes_7d",
                 "star_velocity", "fork_ratio"]
+
+MODEL_NAME = "gitpulse-viral"
 
 def get_available_dates(s3):
     response = s3.list_objects_v2(Bucket=R2_BUCKET, Prefix="gold/")
@@ -88,82 +96,129 @@ def delete_old_data(s3, dates):
 
 def retrain():
     s3 = get_s3_client()
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    client = MlflowClient()
     
-    print("Finding available dates...")
-    available_dates = get_available_dates(s3)
-    print(f"Found {len(available_dates)} days: {available_dates[0]} to {available_dates[-1]}")
+    mlflow.set_experiment("gitpulse-viral-prediction")
     
-    if len(available_dates) < 10:
-        raise ValueError("Need at least 10 days for retraining (7 history + 2 future + 1 target)")
-    
-    print("\nBuilding features...")
-    all_features = []
-    
-    for i, date_str in enumerate(available_dates):
-        if i < 7: 
-            continue
-        if i >= len(available_dates) - 2: 
-            continue
+    with mlflow.start_run() as run:
+        print("Finding available dates...")
+        available_dates = get_available_dates(s3)
+        print(f"Found {len(available_dates)} days: {available_dates[0]} to {available_dates[-1]}")
+        
+        mlflow.log_param("training_days", len(available_dates))
+        mlflow.log_param("date_range", f"{available_dates[0]} to {available_dates[-1]}")
+        
+        if len(available_dates) < 10:
+            raise ValueError("Need at least 10 days for retraining")
+        
+        print("\nBuilding features...")
+        all_features = []
+        
+        for i, date_str in enumerate(available_dates):
+            if i < 7: 
+                continue
+            if i >= len(available_dates) - 2: 
+                continue
+            
+            try:
+                df = build_features(date_str)
+                df["date"] = date_str
+                all_features.append(df)
+                print(f"{date_str}: {len(df)} repos")
+            except Exception as e:
+                print(f"{date_str}: Failed - {e}")
+        
+        if not all_features:
+            raise ValueError("No features could be built")
+        
+        features_df = pd.concat(all_features)
+        print(f"\nTotal features: {len(features_df)} rows")
+        mlflow.log_param("total_samples", len(features_df))
+        
+        print("\nAdding labels...")
+        df = add_labels_vectorized(features_df, s3, available_dates)
+        print(f"Viral repos: {df['viral'].sum()}")
+        
+        viral = df[df["viral"] == 1]
+        non_viral = df[df["viral"] == 0].sample(frac=0.02, random_state=42)
+        balanced_df = pd.concat([viral, non_viral]).sample(frac=1, random_state=42)
+        
+        mlflow.log_param("viral_count", len(viral))
+        mlflow.log_param("non_viral_count", len(non_viral))
+        mlflow.log_param("balance_ratio", round(len(viral) / len(non_viral), 2))
+        
+        print(f"Balanced: {len(viral)} viral, {len(non_viral)} non-viral")
+        
+        X = balanced_df[feature_cols]
+        y = balanced_df["viral"]
+        
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        
+        mlflow.log_param("test_size", 0.2)
+        mlflow.log_param("features", str(feature_cols))
+        
+        scaler_new = MinMaxScaler()
+        X_train_scaled = scaler_new.fit_transform(X_train)
+        X_test_scaled = scaler_new.transform(X_test)
+        
+        mlflow.log_param("model_type", "MLPClassifier")
+        mlflow.log_param("max_iter", 500)
+        
+        model_new = MLPClassifier(max_iter=500, random_state=42)
+        model_new.fit(X_train_scaled, y_train)
+        
+        preds = model_new.predict(X_test_scaled)
+        
+        f1 = f1_score(y_test, preds)
+        precision = precision_score(y_test, preds)
+        recall = recall_score(y_test, preds)
+        accuracy = accuracy_score(y_test, preds)
+        
+        mlflow.log_metric("f1", f1)
+        mlflow.log_metric("precision", precision)
+        mlflow.log_metric("recall", recall)
+        mlflow.log_metric("accuracy", accuracy)
+        
+        print(f"\nMetrics:")
+        print(f"  F1: {f1:.4f}")
+        print(f"  Precision: {precision:.4f}")
+        print(f"  Recall: {recall:.4f}")
+        print(f"  Accuracy: {accuracy:.4f}")
+        
+        mlflow.sklearn.log_model(model_new, name="model")
+        
+        scaler_path = "/tmp/scaler.pkl"
+        joblib.dump(scaler_new, scaler_path)
+        mlflow.log_artifact(scaler_path, artifact_path="scaler")
+        
+        model_uri = f"runs:/{run.info.run_id}/model"
+        result = mlflow.register_model(model_uri, MODEL_NAME)
+        print(f"\nRegistered model version: {result.version}")
         
         try:
-            df = build_features(date_str)
-            df["date"] = date_str
-            all_features.append(df)
-            print(f"{date_str}: {len(df)} repos")
-        except Exception as e:
-            print(f"{date_str}: Failed - {e}")
-    
-    if not all_features:
-        raise ValueError("No features could be built")
-    
-    features_df = pd.concat(all_features)
-    print(f"\nTotal features: {len(features_df)} rows")
-    
-    print("\nAdding labels...")
-    df = add_labels_vectorized(features_df, s3, available_dates)
-    print(f"Viral repos: {df['viral'].sum()}")
-    
-    viral = df[df["viral"] == 1]
-    non_viral = df[df["viral"] == 0].sample(frac=0.02, random_state=42)
-    balanced_df = pd.concat([viral, non_viral]).sample(frac=1, random_state=42)
-    
-    print(f"Balanced: {len(viral)} viral, {len(non_viral)} non-viral")
-    
-    X = balanced_df[feature_cols]
-    y = balanced_df["viral"]
-    
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    
-    scaler_new = MinMaxScaler()
-    X_train_scaled = scaler_new.fit_transform(X_train)
-    X_test_scaled = scaler_new.transform(X_test)
-    
-    model_new = MLPClassifier(max_iter=500, random_state=42)
-    model_new.fit(X_train_scaled, y_train)
-    
-    new_f1 = f1_score(y_test, model_new.predict(X_test_scaled))
-    print(f"\nNew model F1: {new_f1:.4f}")
-    
-    # Save new model with timestamp (never overwrite)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-    model_path = os.path.join(script_dir, f"model_viral_{timestamp}.pkl")
-    scaler_path = os.path.join(script_dir, f"scaler_viral_{timestamp}.pkl")
-    
-    joblib.dump(model_new, model_path)
-    joblib.dump(scaler_new, scaler_path)
-    print(f"Saved: {model_path}")
-    print(f"Saved: {scaler_path}")
-    
-    # Also save as latest (for predict.py to use)
-    joblib.dump(model_new, os.path.join(script_dir, "model_viral.pkl"))
-    joblib.dump(scaler_new, os.path.join(script_dir, "scaler_viral.pkl"))
-    print("Also saved as model_viral.pkl and scaler_viral.pkl")
-    
-    print("\nCleaning up old data...")
-    delete_old_data(s3, available_dates)
-    
-    print("\nRetrain complete!")
+            prod_versions = client.get_latest_versions(MODEL_NAME, stages=["Production"])
+            if prod_versions:
+                prod_run = client.get_run(prod_versions[0].run_id)
+                current_f1 = prod_run.data.metrics.get("f1", 0)
+            else:
+                current_f1 = 0
+        except:
+            current_f1 = 0
+        
+        if f1 > current_f1:
+            client.set_registered_model_alias(MODEL_NAME, "Production", result.version)
+            print(f"Model promoted to Production! F1: {f1:.4f} > {current_f1:.4f}")
+        else:
+            print(f"Model NOT promoted. New F1: {f1:.4f} <= Current: {current_f1:.4f}")
+            if current_f1 == 0:
+                client.set_registered_model_alias(MODEL_NAME, "Production", result.version)
+                print("No existing Production model, setting this as Production")
+        
+        print("\nCleaning up old data...")
+        delete_old_data(s3, available_dates)
+        
+        print("\nRetrain complete!")
 
 if __name__ == "__main__":
     retrain()
+    
